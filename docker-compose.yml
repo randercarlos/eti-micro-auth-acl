@@ -1,0 +1,82 @@
+version: "3.7"
+
+services:
+  eti-micro-auth-acl-app:
+    image: laravel-app
+    build:
+      args:
+        user: eti-micro-auth-acl
+        uid: 1000
+      context: .
+      dockerfile: Dockerfile
+    container_name: eti-micro-auth-acl-app
+    restart: unless-stopped
+    depends_on:
+      - eti-micro-auth-acl-server
+      - eti-micro-auth-acl-db
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    networks:
+      - eti-micro-auth-acl-network
+
+  eti-micro-auth-acl-server:
+    image: nginx:alpine
+    container_name: eti-micro-auth-acl-server
+    restart: unless-stopped
+    ports:
+      - 8005:80
+    volumes:
+      - .:/var/www
+      - ./docker/nginx:/etc/nginx/conf.d
+    networks:
+      - eti-micro-auth-acl-network
+
+  eti-micro-auth-acl-db:
+    image: mysql:5.7
+    container_name: eti-micro-auth-acl-db
+#    restart: unless-stopped
+    volumes:
+      - ./.docker/mysql:/var/lib/mysql
+    ports:
+      - 3310:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - eti-micro-auth-acl-network
+
+  eti-micro-auth-acl-queue:
+    image: laravel-app
+    build:
+      args:
+        user: eti-micro-auth-acl
+        uid: 1000
+      context: .
+      dockerfile: Dockerfile
+    container_name: eti-micro-auth-acl-queue
+    restart: unless-stopped
+    depends_on:
+      - eti-micro-auth-acl-app
+      - eti-micro-auth-acl-redis
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    networks:
+      - eti-micro-auth-acl-network
+    command: php artisan queue:work
+
+  eti-micro-auth-acl-redis:
+    image: redis:6.0
+    container_name: eti-micro-auth-acl-redis
+    restart: unless-stopped
+    ports:
+      - 63790:6379
+    networks:
+      - eti-micro-auth-acl-network
+
+networks:
+  eti-micro-auth-acl-network:
+    driver: bridge
